@@ -15,12 +15,14 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$
 function projectTags(p) { return (p.projects || []).map(project => `<span class="tag p"><img src="/img/${project}.png" alt="" loading="lazy">${escapeHtml(project)}</span>`).join(''); }
 const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 const avatar = (p, size) => `<span class="avatar av${size}"><i>${escapeHtml(initials(p.name))}</i>${p.gravatar ? `<img src="https://www.gravatar.com/avatar/${p.gravatar}?s=${size * 2}&d=blank" alt="" loading="lazy">` : ''}</span>`;
-function card(p, i) { return `<article class="card" data-index="${i}" tabindex="0" role="button" aria-label="View ${escapeHtml(p.name)}"><div class="card-top">${avatar(p, 40)}<div><h3>${escapeHtml(p.name)} ↗</h3><div class="place">⌖ ${escapeHtml(p.place)}${p.company ? ` · ${escapeHtml(p.company)}` : ''}</div></div></div><div class="tags">${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span></div>${p.interests ? `<p>${escapeHtml(p.interests)}</p>` : ''}</article>`; }
-function selected(p) { show(`<span class="label">// CONTRIBUTOR</span><div class="who">${avatar(p, 64)}<div><h2>${escapeHtml(p.name)}</h2><p class="muted">⌖ ${escapeHtml(p.place)} · approximate location${p.company ? ` · ${escapeHtml(p.company)}` : ''}</p></div></div>${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span><p>${escapeHtml(p.bio)}</p><p>${escapeHtml(p.interests)}</p>${p.website ? `<a href="${escapeHtml(p.website)}" target="_blank" rel="noopener noreferrer">Website ↗</a>` : ''}`); }
+const COMPANY_LOGOS = new Set(['google','mozilla','apple','microsoft','samsung','huawei','igalia','vivaldi','opera','collabora','bloomberg','cisco','sony','panasonic','intel','amd','nvidia']);
+const companyLogo = name => { const slug = String(name || '').toLowerCase(); return COMPANY_LOGOS.has(slug) ? `<img class="clogo" src="/img/companies/${slug}.png" alt="" loading="lazy">` : ''; };
+function card(p, i) { return `<article class="card" data-index="${i}" tabindex="0" role="button" aria-label="View ${escapeHtml(p.name)}"><div class="card-top">${avatar(p, 40)}<div><h3>${escapeHtml(p.name)} ↗</h3><div class="place">⌖ ${escapeHtml(p.place)}${p.company ? ` · ${companyLogo(p.company)}${escapeHtml(p.company)}` : ''}</div></div></div><div class="tags">${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span></div>${p.interests ? `<p>${escapeHtml(p.interests)}</p>` : ''}</article>`; }
+function selected(p) { show(`<span class="label">// CONTRIBUTOR</span><div class="who">${avatar(p, 64)}<div><h2>${escapeHtml(p.name)}</h2><p class="muted">⌖ ${escapeHtml(p.place)} · approximate location${p.company ? ` · ${companyLogo(p.company)}${escapeHtml(p.company)}` : ''}</p></div></div>${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span><p>${escapeHtml(p.bio)}</p><p>${escapeHtml(p.interests)}</p>${p.website ? `<a href="${escapeHtml(p.website)}" target="_blank" rel="noopener noreferrer">Website ↗</a>` : ''}`); }
 function render() {
-  const q = $('search').value.toLowerCase(), status = $('filter').value, project = $('project-filter').value;
+  const q = $('search').value.toLowerCase(), status = $('filter').value, project = $('project-filter').value, company = $('company-filter').value, affiliation = $('affiliation-filter').value;
   const bounds = viewOn && map ? map.getBounds() : null;
-  const filtered = profiles.map((p, i) => ({p,i})).filter(({p}) => (!project || p.projects.includes(project)) && (!status || p.status === status) && (!tzOn || Math.abs(p.lng / 15 - myOffset()) < 1) && (!bounds || bounds.contains([p.lng, p.lat])) && [p.name,p.place,p.interests,p.company].join(' ').toLowerCase().includes(q));
+  const filtered = profiles.map((p, i) => ({p,i})).filter(({p}) => (!project || p.projects.includes(project)) && (!status || p.status === status) && (!company || p.company === company) && (!affiliation || (p.affiliation || 'none') === affiliation) && (!tzOn || Math.abs(p.lng / 15 - myOffset()) < 1) && (!bounds || bounds.contains([p.lng, p.lat])) && [p.name,p.place,p.interests,p.company].join(' ').toLowerCase().includes(q));
   lastFiltered = filtered;
   if (tzOn) $('tz').textContent = `⧗ UTC${fmtOffset(myOffset())} · ${filtered.length} here now`;
   if (viewOn) $('view').textContent = `⌖ in view · ${filtered.length}`;
@@ -46,7 +48,14 @@ function fitToMatches() {
   map.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 80, maxZoom: 6, duration: 900 });
 }
 $('view').onclick = () => { viewOn = false; $('view').hidden = true; render(); };
-$('search').oninput = () => { cardLimit = 60; render(); clearTimeout(fitTimer); fitTimer = setTimeout(fitToMatches, 600); }; $('filter').onchange = () => { cardLimit = 60; render(); }; $('project-filter').onchange = () => { cardLimit = 60; render(); };
+function populateCompanyFilter() {
+  const current = $('company-filter').value;
+  const companies = [...new Set(profiles.map(p => p.company).filter(Boolean))].sort();
+  $('company-filter').replaceChildren(new Option('All companies', ''));
+  for (const c of companies) $('company-filter').append(new Option(c, c));
+  $('company-filter').value = companies.includes(current) ? current : '';
+}
+$('search').oninput = () => { cardLimit = 60; render(); clearTimeout(fitTimer); fitTimer = setTimeout(fitToMatches, 600); }; $('filter').onchange = () => { cardLimit = 60; render(); }; $('project-filter').onchange = () => { cardLimit = 60; render(); }; $('company-filter').onchange = () => { cardLimit = 60; render(); }; $('affiliation-filter').onchange = () => { cardLimit = 60; render(); };
 $('cards').addEventListener('click', e => { if (e.target.id === 'more') { cardLimit += 60; render(); } });
 const myOffset = () => -new Date().getTimezoneOffset() / 60;
 const fmtOffset = h => (h >= 0 ? '+' : '-') + Math.abs(Math.trunc(h)) + (h % 1 ? '30' : '');
@@ -57,7 +66,7 @@ $('tz').onclick = () => {
   if (!tzOn) $('tz').textContent = "⧗ who's in my timezone";
   render();
 };
-async function load() { try { profiles = await api('/api/profiles'); $('count').textContent = profiles.length; render(); } catch { $('cards').textContent = 'Directory unavailable right now.'; } }
+async function load() { try { profiles = await api('/api/profiles'); $('count').textContent = profiles.length; render(); populateCompanyFilter(); } catch { $('cards').textContent = 'Directory unavailable right now.'; } }
 function initMap() {
   if (!window.maplibregl || !document.createElement('canvas').getContext('webgl2')) { $('map-overlay').hidden = false; return; }
   try {

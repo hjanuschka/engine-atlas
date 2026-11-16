@@ -159,7 +159,7 @@ async function handle(req, res) {
   if (req.method === 'GET') {
     if (url.pathname.startsWith('/img/')) {
       const name = url.pathname.slice(5);
-      if (/^[a-z]+\.png$/.test(name)) {
+      if (/^(?:companies\/)?[a-z]+\.png$/.test(name)) {
         const content = await readFile(join(import.meta.dirname, 'public', 'img', name));
         res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
         return res.end(content);
