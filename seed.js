@@ -35,6 +35,8 @@ const CITIES = [
   ['Cairo, Egypt', 30.0, 31.2], ['Casablanca, Morocco', 33.6, -7.6], ['Montreal, Canada', 45.5, -73.6]
 ];
 const STATUSES = ['Just browsing', 'Open to meetups', 'Open to mentoring'];
+const COMPANIES = ['Google', 'Mozilla', 'Apple', 'Microsoft', 'Samsung', 'Huawei', 'Igalia', 'Vivaldi', 'Opera', 'Collabora', 'Bloomberg', 'Cisco', 'Sony', 'Panasonic', 'Intel', 'AMD', 'NVIDIA'];
+const OWN_DOMAIN_COMPANIES = new Map([['google.com', 'Google'], ['mozilla.com', 'Mozilla'], ['apple.com', 'Apple'], ['microsoft.com', 'Microsoft'], ['samsung.com', 'Samsung'], ['huawei.com', 'Huawei'], ['igalia.com', 'Igalia'], ['vivaldi.com', 'Vivaldi'], ['opera.com', 'Opera'], ['collabora.com', 'Collabora'], ['bloomberg.com', 'Bloomberg'], ['cisco.com', 'Cisco'], ['sony.com', 'Sony'], ['sonycorp.com', 'Sony'], ['intel.com', 'Intel'], ['amd.com', 'AMD'], ['nvidia.com', 'NVIDIA'], ['chromium.org', 'Google'], ['webkit.org', 'Apple']]);
 const INTERESTS = ['Blink', 'V8', 'graphics', 'accessibility', 'privacy', 'networking', 'webgpu', 'css', 'devtools', 'media', 'security', 'extensions', 'PWA', 'i18n', 'testing', 'performance'];
 const pick = list => list[Math.floor(Math.random() * list.length)];
 const nameFromEmail = email => {
@@ -53,15 +55,18 @@ for (const line of section.split('\n')) {
 }
 const emails = [...parseAuthors(text)];
 const limit = Number(process.argv[2] || emails.length);
-const insert = db.prepare(`INSERT INTO profiles (email,name,place,lat,lng,status,interests,bio,website,published,updated_at,projects,gravatar)
-  VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,place=excluded.place,lat=excluded.lat,lng=excluded.lng,status=excluded.status,interests=excluded.interests,published=1,updated_at=excluded.updated_at,projects=excluded.projects,gravatar=excluded.gravatar`);
+const insert = db.prepare(`INSERT INTO profiles (email,name,place,lat,lng,status,interests,bio,website,published,updated_at,projects,gravatar,affiliation,company)
+  VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,place=excluded.place,lat=excluded.lat,lng=excluded.lng,status=excluded.status,interests=excluded.interests,published=1,updated_at=excluded.updated_at,projects=excluded.projects,gravatar=excluded.gravatar,affiliation=excluded.affiliation,company=excluded.company`);
 db.exec('BEGIN');
 for (const email of emails.slice(0, limit)) {
   const [place, lat, lng] = pick(CITIES);
   const jitter = () => (Math.random() - 0.5) * 0.08; // keep synthetic markers from stacking exactly
+  const employer = OWN_DOMAIN_COMPANIES.get(email.split('@')[1]);
+  const affiliation = employer ? 'corporate' : (Math.random() < 0.35 ? 'individual' : '');
+  const company = affiliation === 'corporate' ? employer || pick(COMPANIES) : '';
   insert.run(email, names.get(email) || nameFromEmail(email), place, lat + jitter(), lng + jitter(), pick(STATUSES),
     Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => pick(INTERESTS)).join(', '), '', '', Date.now(), JSON.stringify(['chromium']),
-    createHash('md5').update(email).digest('hex'));
+    createHash('md5').update(email).digest('hex'), affiliation, company);
 }
 db.exec('COMMIT');
 console.log(`Seeded ${Math.min(limit, emails.length)} synthetic profiles across ${CITIES.length} cities. Remove with: sqlite3 data/map.sqlite "DELETE FROM profiles WHERE bio=''"`);
