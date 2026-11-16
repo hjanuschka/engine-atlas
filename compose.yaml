@@ -1,0 +1,29 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      PORT: '3000'
+      HOST: '0.0.0.0'
+      SITE_URL: ${SITE_URL:-http://localhost:3000}
+      MAIL_MODE: ${MAIL_MODE:-local}
+      SES_REGION: ${SES_REGION:-}
+      SES_FROM: ${SES_FROM:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - app-data:/app/data
+    ports:
+      - '127.0.0.1:3000:3000'
+    command: node server.js
+  refresh:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /app/data
+    volumes:
+      - app-data:/app/data
+    command: node worker.js
+volumes:
+  app-data:
