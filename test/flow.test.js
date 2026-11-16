@@ -29,10 +29,21 @@ try {
     assert.equal((await result.json()).message, 'If this address is eligible, check your inbox.');
     assert.equal((await readdir(join(dir, 'mail')).catch(() => [])).length, 0);
   });
+  await t.test('organization patterns in AUTHORS grant eligibility', async () => {
+    db.prepare('INSERT INTO metadata VALUES (?,?)').run('chromium_org_patterns', JSON.stringify(['*@chromium.org']));
+    const request = await post('/api/request', { email: 'emir.duz@chromium.org' });
+    assert.equal((await request.json()).message, 'If this address is eligible, check your inbox.');
+    const mails = await readdir(join(dir, 'mail'));
+    assert.equal(mails.length, 1);
+    const mail = await readFile(join(dir, 'mail', mails[0]), 'utf8');
+    assert.match(mail, /emir\.duz@chromium\.org/);
+  });
   await t.test('verification, scoped editing and public visibility', async () => {
     const request = await post('/api/request', { email: 'contributor@example.com' });
     assert.equal(request.status, 200);
-    const mail = await readFile(join(dir, 'mail', (await readdir(join(dir, 'mail')))[0]), 'utf8');
+    const mails = await readdir(join(dir, 'mail'));
+    let mail = '';
+    for (const file of mails) { const text = await readFile(join(dir, 'mail', file), 'utf8'); if (text.includes('To: contributor@example.com')) mail = text; }
     const token = new URL(mail.match(/http:\/\/[^\s]+/)[0]).searchParams.get('token');
     const inbox = await (await fetch(`${origin}/magic-links`)).text();
     assert.match(inbox, /contributor@example.com/);

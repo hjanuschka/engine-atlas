@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAuthors, parseWebKit, firefoxEligible, refresh } from '../refresh.js';
+import { parseAuthors, parseWebKit, parseOrgPatterns, matchesPattern, firefoxEligible, refresh } from '../refresh.js';
 
 test('AUTHORS accepts individual emails, not organization patterns or malformed lines', () => {
   const text = `# BEGIN individuals section.
@@ -38,4 +38,18 @@ test('DevTools AUTHORS refreshes through the shared parser', async () => {
   const text = '# comment\n# BEGIN individuals section.\nDev Person <dev@example.com>\n# END individuals section.\n';
   const fetcher = async () => ({ ok: true, text: async () => text });
   assert.equal(await refresh('devtools', fetcher, 1), 1);
+});
+
+test('AUTHORS organizations section yields fnmatch patterns', () => {
+  const text = '# BEGIN organizations section.\nThe Chromium Authors <*@chromium.org>\nBocoup <*@bocoup.com>\nBroken <not-an-email>\n# END organizations section.';
+  assert.deepEqual(parseOrgPatterns(text), ['*@chromium.org', '*@bocoup.com']);
+  assert.deepEqual(parseOrgPatterns('# no organizations'), []);
+});
+
+test('organization patterns match contributor emails like fnmatch', () => {
+  assert.equal(matchesPattern('emir.duz@chromium.org', '*@chromium.org'), true);
+  assert.equal(matchesPattern('emir.duz@fuchromium.org', '*@chromium.org'), false);
+  assert.equal(matchesPattern('a@b@chromium.org', '*@chromium.org'), true);
+  assert.equal(matchesPattern('x@axcom', '*@a.com'), false);
+  assert.equal(matchesPattern('ab@chromium.org', '?b@chromium.org'), true);
 });

@@ -6,7 +6,7 @@ import { watch } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { db, getMeta } from './db.js';
 import { sendLink } from './mail.js';
-import { firefoxEligible, sourceReady } from './refresh.js';
+import { firefoxEligible, sourceReady, orgMatches } from './refresh.js';
 
 const port = Number(process.env.PORT || 3000);
 const site = process.env.SITE_URL || `http://localhost:${port}`;
@@ -100,7 +100,7 @@ async function handle(req, res) {
     const message = { message: 'If this address is eligible, check your inbox.' };
     const ip = req.socket.remoteAddress; // Only trust the direct peer, not user-controlled forwarding headers.
     if (limited(`ip:${ip}`, 15, 3600_000) || limited(`email:${hash(email)}`, 3, 3600_000) || limited('global', 500, 3600_000)) return json(res, 200, message);
-    const projects = ['chromium', 'webkit', 'devtools'].filter(project => sourceReady(project) && db.prepare('SELECT 1 FROM contributor_sources WHERE project=? AND email=?').get(project, email));
+    const projects = ['chromium', 'webkit', 'devtools'].filter(project => sourceReady(project) && (db.prepare('SELECT 1 FROM contributor_sources WHERE project=? AND email=?').get(project, email) || orgMatches(project, email)));
     try { if (await firefoxEligible(email)) projects.push('firefox'); }
     catch (error) {
       console.error('Firefox eligibility lookup failed:', error);

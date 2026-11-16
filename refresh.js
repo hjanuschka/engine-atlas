@@ -28,6 +28,25 @@ export function parseWebKit(text) {
   }
   return emails;
 }
+export function parseOrgPatterns(text) {
+  const section = text.split('# BEGIN organizations section.')[1]?.split('# END organizations section.')[0];
+  if (!section) return [];
+  const patterns = new Set();
+  for (const line of section.split('\n')) {
+    if (!line.trim() || line.startsWith('#')) continue;
+    const match = /^.+ <([^<>\s@]+@[^<>\s@]+)>$/.exec(line.trim());
+    if (match && /[*?]/.test(match[1])) patterns.add(match[1].toLowerCase());
+  }
+  return [...patterns];
+}
+export function matchesPattern(email, pattern) {
+  const source = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+  return new RegExp(`^${source}$`, 'i').test(email);
+}
+export function orgMatches(project, email) {
+  const patterns = JSON.parse(getMeta(`${project}_org_patterns`) || '[]');
+  return patterns.some(pattern => matchesPattern(email, pattern));
+}
 export async function refresh(project, fetcher = fetch, minimum = project === 'chromium' ? 1000 : project === 'devtools' ? 100 : 500) {
   if (!SOURCES[project]) throw new Error('Unknown source');
   const response = await fetcher(SOURCES[project], { signal: AbortSignal.timeout(60000) });
@@ -36,12 +55,15 @@ export async function refresh(project, fetcher = fetch, minimum = project === 'c
   if (data.length > 5_000_000) throw new Error(`${project} source too large`);
   const emails = project === 'chromium' ? parseAuthors(Buffer.from(data, 'base64').toString('utf8')) : project === 'devtools' ? parseAuthors(data) : parseWebKit(data);
   if (emails.size < minimum) throw new Error(`${project} source has only ${emails.size} individuals`);
+  const orgPatterns = project === 'webkit' ? [] : parseOrgPatterns(project === 'chromium' ? Buffer.from(data, 'base64').toString('utf8') : data);
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('DELETE FROM contributor_sources WHERE project=?').run(project);
     const insert = db.prepare('INSERT INTO contributor_sources VALUES (?,?)');
     for (const email of emails) insert.run(project, email);
-    db.prepare('INSERT INTO metadata (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(`${project}_refreshed_at`, String(Date.now()));
+    const meta = 'INSERT INTO metadata (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value';
+    db.prepare(meta).run(`${project}_refreshed_at`, String(Date.now()));
+    db.prepare(meta).run(`${project}_org_patterns`, JSON.stringify(orgPatterns));
     db.exec('COMMIT');
   } catch (error) { db.exec('ROLLBACK'); throw error; }
   return emails.size;
