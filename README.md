@@ -1,6 +1,6 @@
 # Engine Atlas
 
-Opt-in map of Chromium, Firefox and WebKit contributors. See [spec.md](spec.md) for the product and security design.
+Opt-in map of Chromium, Firefox, WebKit and DevTools contributors. See [spec.md](spec.md) for the product and security design.
 
 ## Local development
 
@@ -15,9 +15,9 @@ Open http://localhost:4317. No map account, API key, credit card, or Google bill
 
 City search uses the public OpenStreetMap Nominatim service through our server, at no more than one upstream request per second. Its [usage policy](https://operations.osmfoundation.org/policies/nominatim/) requires attribution, an identifiable app, and limited use; if search demand grows, use a dedicated or self-hosted geocoder. The public map and search are separate services with separate policies.
 
-`yarn start` runs the server and daily Chromium/WebKit refresh worker together. Backend edits restart the server; frontend edits reload the browser. Initial downloads require access to chromium.googlesource.com and raw.githubusercontent.com. Run `yarn refresh` to refresh both sources manually. Firefox eligibility is checked against exact commit-author emails in the public `mozilla/gecko-dev` mirror when a link is requested (including imported WPT commits); positive results are cached for one day and negative results for one hour. Mozilla's `AUTHORS` points to a credits page, not an email roster. GitHub search has API rate limits; set `GITHUB_TOKEN` if needed (server-side only).
+`yarn start` runs the server and daily Chromium/WebKit/DevTools refresh worker together. Backend edits restart the server; frontend edits reload the browser. Initial downloads require access to chromium.googlesource.com and raw.githubusercontent.com. Run `yarn refresh` to refresh all roster sources manually. Firefox eligibility is checked against exact commit-author emails in the public `mozilla/gecko-dev` mirror when a link is requested (including imported WPT commits); positive results are cached for one day and negative results for one hour. Mozilla's `AUTHORS` points to a credits page, not an email roster. GitHub search has API rate limits; set `GITHUB_TOKEN` if needed (server-side only).
 
-Enter your email once. The server checks all three sources before sending a link, and a single verified profile gets every matching project badge. The email itself is never published. If GitHub's Firefox lookup is temporarily unavailable, Chromium/WebKit matches can still receive a link; request another later to add the missing badge. Local emails are written to `data/mail/`, never sent. Open http://localhost:4317/magic-links to see them (development only, accessible from the local machine). Follow a link to test create/edit; request another after the session expires.
+Enter your email once. The server checks all four sources before sending a link, and a single verified profile gets every matching project badge. The email itself is never published. If GitHub's Firefox lookup is temporarily unavailable, roster matches (Chromium/WebKit/DevTools) can still receive a link; request another later to add the missing badge. Local emails are written to `data/mail/`, never sent. Open http://localhost:4317/magic-links to see them (development only, accessible from the local machine). Follow a link to test create/edit; request another after the session expires.
 
 ## Docker
 

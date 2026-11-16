@@ -2,7 +2,8 @@ import { db, getMeta } from './db.js';
 
 export const SOURCES = {
   chromium: 'https://chromium.googlesource.com/chromium/src/+/main/AUTHORS?format=TEXT',
-  webkit: 'https://raw.githubusercontent.com/WebKit/WebKit/main/metadata/contributors.json'
+  webkit: 'https://raw.githubusercontent.com/WebKit/WebKit/main/metadata/contributors.json',
+  devtools: 'https://raw.githubusercontent.com/ChromeDevTools/devtools-frontend/main/AUTHORS'
 };
 export function parseAuthors(text) {
   const section = text.split('# BEGIN individuals section.')[1]?.split('# END individuals section.')[0];
@@ -27,13 +28,13 @@ export function parseWebKit(text) {
   }
   return emails;
 }
-export async function refresh(project, fetcher = fetch, minimum = project === 'chromium' ? 1000 : 500) {
+export async function refresh(project, fetcher = fetch, minimum = project === 'chromium' ? 1000 : project === 'devtools' ? 100 : 500) {
   if (!SOURCES[project]) throw new Error('Unknown source');
   const response = await fetcher(SOURCES[project], { signal: AbortSignal.timeout(60000) });
   if (!response.ok) throw new Error(`${project} fetch failed: ${response.status}`);
   const data = await response.text();
   if (data.length > 5_000_000) throw new Error(`${project} source too large`);
-  const emails = project === 'chromium' ? parseAuthors(Buffer.from(data, 'base64').toString('utf8')) : parseWebKit(data);
+  const emails = project === 'chromium' ? parseAuthors(Buffer.from(data, 'base64').toString('utf8')) : project === 'devtools' ? parseAuthors(data) : parseWebKit(data);
   if (emails.size < minimum) throw new Error(`${project} source has only ${emails.size} individuals`);
   db.exec('BEGIN IMMEDIATE');
   try {

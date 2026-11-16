@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseAuthors, parseWebKit, firefoxEligible } from '../refresh.js';
+import { parseAuthors, parseWebKit, firefoxEligible, refresh } from '../refresh.js';
 
 test('AUTHORS accepts individual emails, not organization patterns or malformed lines', () => {
   const text = `# BEGIN individuals section.
@@ -32,4 +32,10 @@ test('Firefox commit search checks the actual author email, not just result coun
     { commit: { author: { email: 'someone-else@example.org' } } }
   ] }) });
   assert.equal(await firefoxEligible(address, search), false);
+});
+
+test('DevTools AUTHORS refreshes through the shared parser', async () => {
+  const text = '# comment\n# BEGIN individuals section.\nDev Person <dev@example.com>\n# END individuals section.\n';
+  const fetcher = async () => ({ ok: true, text: async () => text });
+  assert.equal(await refresh('devtools', fetcher, 1), 1);
 });

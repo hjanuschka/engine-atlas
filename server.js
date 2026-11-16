@@ -92,7 +92,7 @@ async function handle(req, res) {
   if (req.method === 'GET' && url.pathname === '/api/profiles') {
     return json(res, 200, db.prepare('SELECT name,place,lat,lng,status,interests,bio,website,projects,gravatar,affiliation,company FROM profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 5000').all().map(publicProfile));
   }
-  if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, Object.fromEntries(['chromium','firefox','webkit'].map(project => [project, { ready: sourceReady(project), updated: getMeta(`${project}_refreshed_at`) || null }])));
+  if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, Object.fromEntries(['chromium','firefox','webkit','devtools'].map(project => [project, { ready: sourceReady(project), updated: getMeta(`${project}_refreshed_at`) || null }])));
   if (req.method === 'POST' && url.pathname === '/api/request') {
     const email = String((await body(req)).email || '').trim().toLowerCase();
     if (!/^[^\s@]{1,64}@[^\s@]{1,253}$/.test(email)) return json(res, 400, { error: 'Enter a valid email address.' });
@@ -100,11 +100,11 @@ async function handle(req, res) {
     const message = { message: 'If this address is eligible, check your inbox.' };
     const ip = req.socket.remoteAddress; // Only trust the direct peer, not user-controlled forwarding headers.
     if (limited(`ip:${ip}`, 15, 3600_000) || limited(`email:${hash(email)}`, 3, 3600_000) || limited('global', 500, 3600_000)) return json(res, 200, message);
-    const projects = ['chromium', 'webkit'].filter(project => sourceReady(project) && db.prepare('SELECT 1 FROM contributor_sources WHERE project=? AND email=?').get(project, email));
+    const projects = ['chromium', 'webkit', 'devtools'].filter(project => sourceReady(project) && db.prepare('SELECT 1 FROM contributor_sources WHERE project=? AND email=?').get(project, email));
     try { if (await firefoxEligible(email)) projects.push('firefox'); }
     catch (error) {
       console.error('Firefox eligibility lookup failed:', error);
-      if (!projects.length && !sourceReady('chromium') && !sourceReady('webkit')) return json(res, 503, { error: 'Contributor verification is temporarily unavailable.' });
+      if (!projects.length && !sourceReady('chromium') && !sourceReady('webkit') && !sourceReady('devtools')) return json(res, 503, { error: 'Contributor verification is temporarily unavailable.' });
     }
     if (!projects.length) return json(res, 200, message);
     const value = token();
