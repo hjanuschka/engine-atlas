@@ -19,11 +19,21 @@ City search uses the public OpenStreetMap Nominatim service through our server, 
 
 Enter your email once. The server checks all three sources before sending a link, and a single verified profile gets every matching project badge. The email itself is never published. If GitHub's Firefox lookup is temporarily unavailable, Chromium/WebKit matches can still receive a link; request another later to add the missing badge. Local emails are written to `data/mail/`, never sent. Open http://localhost:4317/magic-links to see them (development only, accessible from the local machine). Follow a link to test create/edit; request another after the session expires.
 
-## Docker (later)
+## Docker
 
 ```sh
 docker compose up --build -d
 ```
+
+### Production deploy (chrome2 / atlas.januschka.com)
+
+The repo is checked out at `~/my-host/engine-atlas` and wired into the shared `~/my-host/docker-compose.yml` (services `engine-atlas` + `engine-atlas-refresh`, named volume `engine-atlas-data`, Caddy site `atlas.januschka.com` → `engine-atlas:3000`). SES credentials live in `~/my-host/.env` as `ATLAS_*` vars.
+
+```sh
+cd ~/my-host/engine-atlas && git pull
+cd ~/my-host && docker compose build engine-atlas && docker compose up -d engine-atlas engine-atlas-refresh
+```
+
 
 Production: set `SITE_URL=https://your-domain`, `MAIL_MODE=ses`, `SES_REGION`, and `SES_FROM` (SES verified sender). Use an AWS role where possible, or inject AWS credentials at runtime via a secret manager. Put TLS/reverse proxy in front of the localhost-bound web port. SES sandbox only delivers to verified recipients; request production access before launch. `docker compose exec web node refresh.js` triggers a manual roster refresh. Back up the persistent `app-data` volume. Never expose `data/mail` publicly.
 
