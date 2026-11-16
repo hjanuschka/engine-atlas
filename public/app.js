@@ -12,7 +12,7 @@ function close() { $('dialog').hidden = true; if (location.pathname !== '/') his
 $('close-dialog').onclick = close;
 $('dialog').onclick = event => { if (event.target === $('dialog')) close(); };
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$('dialog').hidden) close(); });
-function projectTags(p) { return (p.projects || []).map(project => `<span class="tag p">${escapeHtml({ chromium: 'chromium', firefox: 'firefox', webkit: 'webkit' }[project] || project)}</span>`).join(''); }
+function projectTags(p) { return (p.projects || []).map(project => `<span class="tag p"><img src="/img/${project}.png" alt="" loading="lazy">${escapeHtml(project)}</span>`).join(''); }
 const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 const avatar = (p, size) => `<span class="avatar av${size}"><i>${escapeHtml(initials(p.name))}</i>${p.gravatar ? `<img src="https://www.gravatar.com/avatar/${p.gravatar}?s=${size * 2}&d=blank" alt="" loading="lazy">` : ''}</span>`;
 function card(p, i) { return `<article class="card" data-index="${i}" tabindex="0" role="button" aria-label="View ${escapeHtml(p.name)}"><div class="card-top">${avatar(p, 40)}<div><h3>${escapeHtml(p.name)} ↗</h3><div class="place">⌖ ${escapeHtml(p.place)} · approximate</div></div></div>${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span>${p.interests ? `<p>${escapeHtml(p.interests)}</p>` : ''}</article>`; }

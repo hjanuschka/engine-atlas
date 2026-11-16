@@ -151,6 +151,14 @@ async function handle(req, res) {
     return json(res, 200, { message: url.pathname === '/api/hide' ? 'Profile hidden.' : 'Profile deleted.' });
   }
   if (req.method === 'GET') {
+    if (url.pathname.startsWith('/img/')) {
+      const name = url.pathname.slice(5);
+      if (/^[a-z]+\.png$/.test(name)) {
+        const content = await readFile(join(import.meta.dirname, 'public', 'img', name));
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+        return res.end(content);
+      }
+    }
     const files = { '/': 'index.html', '/verify': 'index.html', '/edit': 'index.html', '/app.js': 'app.js', '/style.css': 'style.css', '/maplibre.js': '../node_modules/maplibre-gl/dist/maplibre-gl.js', '/maplibre.css': '../node_modules/maplibre-gl/dist/maplibre-gl.css' };
     const file = files[url.pathname];
     if (file) {
