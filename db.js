@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS contributor_sources (project TEXT NOT NULL, email TEX
 CREATE TABLE IF NOT EXISTS firefox_lookups (email TEXT PRIMARY KEY, eligible INTEGER NOT NULL, expires INTEGER NOT NULL);`);
 if (!db.prepare("PRAGMA table_info(profiles)").all().some(column => column.name === 'projects')) db.exec("ALTER TABLE profiles ADD COLUMN projects TEXT NOT NULL DEFAULT '[\"chromium\"]'");
 if (!db.prepare("PRAGMA table_info(profiles)").all().some(column => column.name === 'gravatar')) db.exec("ALTER TABLE profiles ADD COLUMN gravatar TEXT NOT NULL DEFAULT ''");
+if (!db.prepare("PRAGMA table_info(profiles)").all().some(column => column.name === 'affiliation')) db.exec("ALTER TABLE profiles ADD COLUMN affiliation TEXT NOT NULL DEFAULT ''");
+if (!db.prepare("PRAGMA table_info(profiles)").all().some(column => column.name === 'company')) db.exec("ALTER TABLE profiles ADD COLUMN company TEXT NOT NULL DEFAULT ''");
 db.exec("UPDATE profiles SET gravatar='' WHERE gravatar IS NULL");
 for (const { email } of db.prepare("SELECT email FROM profiles WHERE gravatar=''").all())
   db.prepare("UPDATE profiles SET gravatar=? WHERE email=?").run(createHash('md5').update(email.trim().toLowerCase()).digest('hex'), email);

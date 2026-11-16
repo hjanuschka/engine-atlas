@@ -52,8 +52,9 @@ function limited(key, max, interval) {
   return false;
 }
 function text(value, max) { if (typeof value !== 'string' || value.trim().length > max) throw Object.assign(new Error('Invalid profile field'), { status: 400 }); return value.trim(); }
-function publicProfile(p) { return { name: p.name, place: p.place, lat: p.lat, lng: p.lng, status: p.status, interests: p.interests, bio: p.bio, website: p.website, projects: JSON.parse(p.projects), gravatar: p.gravatar }; }
+function publicProfile(p) { return { name: p.name, place: p.place, lat: p.lat, lng: p.lng, status: p.status, interests: p.interests, bio: p.bio, website: p.website, projects: JSON.parse(p.projects), gravatar: p.gravatar, affiliation: p.affiliation, company: p.company }; }
 const allowedStatus = new Set(['Just browsing', 'Open to meetups', 'Open to mentoring']);
+const allowedAffiliation = new Set(['', 'individual', 'corporate']);
 async function handle(req, res) {
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -89,7 +90,7 @@ async function handle(req, res) {
     return json(res, 200, places);
   }
   if (req.method === 'GET' && url.pathname === '/api/profiles') {
-    return json(res, 200, db.prepare('SELECT name,place,lat,lng,status,interests,bio,website,projects,gravatar FROM profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 5000').all().map(publicProfile));
+    return json(res, 200, db.prepare('SELECT name,place,lat,lng,status,interests,bio,website,projects,gravatar,affiliation,company FROM profiles WHERE published=1 ORDER BY updated_at DESC LIMIT 5000').all().map(publicProfile));
   }
   if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, Object.fromEntries(['chromium','firefox','webkit'].map(project => [project, { ready: sourceReady(project), updated: getMeta(`${project}_refreshed_at`) || null }])));
   if (req.method === 'POST' && url.pathname === '/api/request') {
@@ -136,12 +137,17 @@ async function handle(req, res) {
     const s = requireSession(req), data = await body(req);
     const name = text(data.name, 80), place = text(data.place, 100), bio = text(data.bio || '', 400), interests = text(data.interests || '', 120), status = text(data.status, 40), website = text(data.website || '', 200);
     const lat = Number(data.lat), lng = Number(data.lng);
+    const affiliation = text(data.affiliation || '', 20);
+    let company = text(data.company || '', 60);
+    if (!allowedAffiliation.has(affiliation)) throw Object.assign(new Error('Choose individual or company.'), { status: 400 });
+    if (affiliation === 'corporate' && !company) throw Object.assign(new Error('Pick or type your company.'), { status: 400 });
+    if (affiliation !== 'corporate') company = '';
     if (data.lat === '' || data.lng === '' || data.lat == null || data.lng == null) throw Object.assign(new Error('Choose your city from the suggestions before saving.'), { status: 400 });
     if (!name || !place || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180 || !allowedStatus.has(status) || (website && (!/^https:\/\//.test(website) || !URL.canParse(website))) || typeof data.published !== 'boolean') throw Object.assign(new Error('Check your profile fields.'), { status: 400 });
     const existing = db.prepare('SELECT projects FROM profiles WHERE email=?').get(s.email);
     const projects = JSON.stringify([...new Set([...(existing ? JSON.parse(existing.projects) : []), ...JSON.parse(s.projects)])]);
-    db.prepare(`INSERT INTO profiles (email,name,place,lat,lng,status,interests,bio,website,published,updated_at,projects,gravatar) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,place=excluded.place,lat=excluded.lat,lng=excluded.lng,status=excluded.status,interests=excluded.interests,bio=excluded.bio,website=excluded.website,published=excluded.published,updated_at=excluded.updated_at,projects=excluded.projects,gravatar=excluded.gravatar`)
-      .run(s.email, name, place, Math.round(lat * 10) / 10, Math.round(lng * 10) / 10, status, interests, bio, website, data.published ? 1 : 0, Date.now(), projects, gravatarHash(s.email));
+    db.prepare(`INSERT INTO profiles (email,name,place,lat,lng,status,interests,bio,website,published,updated_at,projects,gravatar,affiliation,company) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET name=excluded.name,place=excluded.place,lat=excluded.lat,lng=excluded.lng,status=excluded.status,interests=excluded.interests,bio=excluded.bio,website=excluded.website,published=excluded.published,updated_at=excluded.updated_at,projects=excluded.projects,gravatar=excluded.gravatar,affiliation=excluded.affiliation,company=excluded.company`)
+      .run(s.email, name, place, Math.round(lat * 10) / 10, Math.round(lng * 10) / 10, status, interests, bio, website, data.published ? 1 : 0, Date.now(), projects, gravatarHash(s.email), affiliation, company);
     return json(res, 200, { message: 'Profile saved.' });
   }
   if (req.method === 'POST' && (url.pathname === '/api/hide' || url.pathname === '/api/delete')) {

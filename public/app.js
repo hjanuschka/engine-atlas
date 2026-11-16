@@ -15,12 +15,12 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && !$
 function projectTags(p) { return (p.projects || []).map(project => `<span class="tag p"><img src="/img/${project}.png" alt="" loading="lazy">${escapeHtml(project)}</span>`).join(''); }
 const initials = name => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 const avatar = (p, size) => `<span class="avatar av${size}"><i>${escapeHtml(initials(p.name))}</i>${p.gravatar ? `<img src="https://www.gravatar.com/avatar/${p.gravatar}?s=${size * 2}&d=blank" alt="" loading="lazy">` : ''}</span>`;
-function card(p, i) { return `<article class="card" data-index="${i}" tabindex="0" role="button" aria-label="View ${escapeHtml(p.name)}"><div class="card-top">${avatar(p, 40)}<div><h3>${escapeHtml(p.name)} ↗</h3><div class="place">⌖ ${escapeHtml(p.place)} · approximate</div></div></div><div class="tags">${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span></div>${p.interests ? `<p>${escapeHtml(p.interests)}</p>` : ''}</article>`; }
-function selected(p) { show(`<span class="label">// CONTRIBUTOR</span><div class="who">${avatar(p, 64)}<div><h2>${escapeHtml(p.name)}</h2><p class="muted">⌖ ${escapeHtml(p.place)} · approximate location</p></div></div>${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span><p>${escapeHtml(p.bio)}</p><p>${escapeHtml(p.interests)}</p>${p.website ? `<a href="${escapeHtml(p.website)}" target="_blank" rel="noopener noreferrer">Website ↗</a>` : ''}`); }
+function card(p, i) { return `<article class="card" data-index="${i}" tabindex="0" role="button" aria-label="View ${escapeHtml(p.name)}"><div class="card-top">${avatar(p, 40)}<div><h3>${escapeHtml(p.name)} ↗</h3><div class="place">⌖ ${escapeHtml(p.place)}${p.company ? ` · ${escapeHtml(p.company)}` : ''}</div></div></div><div class="tags">${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span></div>${p.interests ? `<p>${escapeHtml(p.interests)}</p>` : ''}</article>`; }
+function selected(p) { show(`<span class="label">// CONTRIBUTOR</span><div class="who">${avatar(p, 64)}<div><h2>${escapeHtml(p.name)}</h2><p class="muted">⌖ ${escapeHtml(p.place)} · approximate location${p.company ? ` · ${escapeHtml(p.company)}` : ''}</p></div></div>${projectTags(p)}<span class="tag">${escapeHtml(p.status)}</span><p>${escapeHtml(p.bio)}</p><p>${escapeHtml(p.interests)}</p>${p.website ? `<a href="${escapeHtml(p.website)}" target="_blank" rel="noopener noreferrer">Website ↗</a>` : ''}`); }
 function render() {
   const q = $('search').value.toLowerCase(), status = $('filter').value, project = $('project-filter').value;
   const bounds = viewOn && map ? map.getBounds() : null;
-  const filtered = profiles.map((p, i) => ({p,i})).filter(({p}) => (!project || p.projects.includes(project)) && (!status || p.status === status) && (!tzOn || Math.abs(p.lng / 15 - myOffset()) < 1) && (!bounds || bounds.contains([p.lng, p.lat])) && [p.name,p.place,p.interests].join(' ').toLowerCase().includes(q));
+  const filtered = profiles.map((p, i) => ({p,i})).filter(({p}) => (!project || p.projects.includes(project)) && (!status || p.status === status) && (!tzOn || Math.abs(p.lng / 15 - myOffset()) < 1) && (!bounds || bounds.contains([p.lng, p.lat])) && [p.name,p.place,p.interests,p.company].join(' ').toLowerCase().includes(q));
   lastFiltered = filtered;
   if (tzOn) $('tz').textContent = `⧗ UTC${fmtOffset(myOffset())} · ${filtered.length} here now`;
   if (viewOn) $('view').textContent = `⌖ in view · ${filtered.length}`;
@@ -100,6 +100,15 @@ async function edit() {
   <button type="button" id="find-place" class="quiet-link">⌕ Find this city →</button><div id="places" role="status"></div>
   <input type="hidden" name="lat" value="${escapeHtml(p.lat ?? '')}"><input type="hidden" name="lng" value="${escapeHtml(p.lng ?? '')}"><small>Choose a city from the results to place your approximate marker. Never enter an address.</small>
   <label>STATUS<select name="status">${['Just browsing','Open to meetups','Open to mentoring'].map(s => `<option ${p.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+  <label>CONTRIBUTING AS<select name="affiliation" id="affiliation">
+    <option value="" ${!p.affiliation ? 'selected' : ''}>— not specified —</option>
+    <option value="individual" ${p.affiliation === 'individual' ? 'selected' : ''}>Individual (own time)</option>
+    <option value="corporate" ${p.affiliation === 'corporate' ? 'selected' : ''}>Company / employer</option>
+  </select></label>
+  <div id="company-fields"${p.affiliation === 'corporate' ? '' : ' hidden'}>
+    <label>COMPANY<select id="company-select">${['Google','Mozilla','Apple','Microsoft','Samsung','Huawei','Igalia','Vivaldi','Opera','Collabora','Bloomberg','Cisco','Sony','Panasonic','Intel','AMD','NVIDIA','Other…'].map(c => `<option ${p.company === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+    <input id="company-other" maxlength="60" placeholder="Company name" value="${p.company && !['Google','Mozilla','Apple','Microsoft','Samsung','Huawei','Igalia','Vivaldi','Opera','Collabora','Bloomberg','Cisco','Sony','Panasonic','Intel','AMD','NVIDIA'].includes(p.company) ? escapeHtml(p.company) : ''}"${p.company && !['Google','Mozilla','Apple','Microsoft','Samsung','Huawei','Igalia','Vivaldi','Opera','Collabora','Bloomberg','Cisco','Sony','Panasonic','Intel','AMD','NVIDIA'].includes(p.company) ? '' : ' hidden'}>
+  </div>
   ${field('INTERESTS (comma-separated)','interests',p.interests,'maxlength="120" placeholder="Blink, graphics, accessibility"')}
   <label>SHORT BIO<textarea name="bio" maxlength="400" rows="3">${escapeHtml(p.bio || '')}</textarea></label>
   ${field('WEBSITE (HTTPS ONLY)','website',p.website,'type="url" maxlength="200" placeholder="https://..."')}
@@ -107,6 +116,9 @@ async function edit() {
   <button class="button" type="submit">Save profile →</button><p id="edit-message" role="status"></p>
   <div class="row"><button class="danger" type="button" id="hide">Hide profile</button><button class="danger" type="button" id="delete">Delete profile permanently</button></div></form>`);
   const formElement = $('edit-form');
+  const affiliationField = formElement.elements.affiliation;
+  affiliationField.addEventListener('change', () => { $('company-fields').hidden = affiliationField.value !== 'corporate'; });
+  $('company-select').addEventListener('change', () => { $('company-other').hidden = $('company-select').value !== 'Other…'; });
   const placeField = formElement.elements.place;
   placeField.addEventListener('input', () => { formElement.elements.lat.value = ''; formElement.elements.lng.value = ''; });
   function selectPlace(place) {
@@ -136,6 +148,7 @@ async function edit() {
     try {
       if (!formElement.elements.lat.value || !formElement.elements.lng.value) await findPlace(true);
       const form = new FormData(e.target), data = Object.fromEntries(form);
+      data.company = $('company-fields').hidden ? '' : ($('company-select').value === 'Other…' ? $('company-other').value.trim() : $('company-select').value);
       data.published = form.has('published');
       $('edit-message').textContent = (await api('/api/profile', data, me.csrf)).message;
       await load();
